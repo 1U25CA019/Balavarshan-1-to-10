@@ -1,0 +1,69 @@
+name: DBMS Autograding
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  autograde:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install MySQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+      - name: Wait for MySQL
+        run: |
+          until mysqladmin ping -h127.0.0.1 -P3306 -uroot -proot --silent
+          do
+            echo "Waiting for MySQL..."
+            sleep 2
+          done
+
+      - name: Run Assignment Tests
+        shell: bash
+        run: |
+
+          for folder in Assignment*/
+          do
+
+            if [ -f "$folder/tests/test.sh" ]; then
+
+              echo ""
+              echo "====================================="
+              echo "Running $folder"
+              echo "====================================="
+
+              chmod +x "$folder/tests/test.sh"
+
+              (
+                cd "$folder"
+                ./tests/test.sh
+              )
+
+            fi
+
+          done
+
+      - name: Finished
+        run: echo "All tests completed successfully."
